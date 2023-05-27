@@ -1,6 +1,6 @@
 class Stream:
     def __init__(self):
-        self.queue = {}
+        self.queue = []
     
     def add(self, body):
         self.queue.append(body)

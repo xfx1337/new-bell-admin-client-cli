@@ -12,8 +12,11 @@ get_token - returns your token
 devices - list all devices and info about them
 unverified - list all unverified devices and info about them
 info [id] - get current info about device
-monitor_all - real time monitoring of all devices
 approve [id] - approve device with id
+monitor_all - real time monitoring of all devices. enables monitoring mode
+
+[monitoring mode only]
+set_monitoring_mode [on_update/timeout] - sets monitoring mode
 
 [admin]
 get_events - get admin events
@@ -49,4 +52,6 @@ delete_user
 info
 devices
 unverified
+monitor_all
+set_monitoring_mode
 """
