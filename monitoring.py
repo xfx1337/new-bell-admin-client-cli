@@ -28,6 +28,7 @@ class Monitoring:
         self.last_update = datetime.now()
         self.pause = False
         self._force_st = False
+        self._first_run = True
         self.wait_st = [True]
         self.terminal_enabled_st = terminal_enabled_st
         self.update_mode = update_mode
@@ -49,21 +50,19 @@ class Monitoring:
     def show_devices(self):
         try:
             while not self.exit_st[0]:
-                if not self.update:
-                    if self.update_mode == "timeout":
-                        if datetime.now() > self.last_update + timedelta(seconds=self.timeout):
-                            self.last_update = datetime.now()
-                        else:    
+                if not self._force_st:
+                    if not self.update:
+                        if self.update_mode == "timeout":
+                            if datetime.now() > self.last_update + timedelta(seconds=self.timeout):
+                                self.last_update = datetime.now()
+                            else:    
+                                continue
+                        else:
                             continue
                     else:
-                        continue
+                        if self.update_mode != "on_update":
+                            continue
                 else:
-                    if self.update_mode != "on_update":
-                        continue
-
-                if self.pause:
-                    if not self._force_st:
-                        continue
                     self._force_st = False
 
                 self.size = os.get_terminal_size()
@@ -101,8 +100,10 @@ class Monitoring:
                 self.update = False
                 self.wait_st[0] = True
 
-                if self.terminal_enabled_st:
-                    self._enter_terminal()
+                if self.terminal_enabled_st and self._first_run:
+                    self._pause()
+                    threading.Thread(target=self._enter_terminal, daemon=True).start()
+                self._first_run = False
 
             return
         except Exception as e:
@@ -125,25 +126,28 @@ class Monitoring:
             print("you are in monitoring mode terminal. you can go back to monitoring by pressing [q]. [d], [u], [r] works too.")
         self.terminal_enabled_st = True
         self.wait_st[0] = True
-        cmd_manager.main(self.exit_st, entry_point="monitoring", cmd_controller=self.__cmd_controller, wait_st=self.wait_st)
+        cmd_manager.main(self.exit_st, entry_point="monitoring", cmd_controller=self._cmd_controller, wait_st=self.wait_st)
         self.terminal_enabled_st = False
         self._unpause()
+        self._force_st = True
         self._keyboard_thread = threading.Thread(target=self._key_reader, daemon=True)
         self._keyboard_thread.start()
 
-    def __cmd_controller(self, cmd):
+    def _cmd_controller(self, cmd):
         self._force_st = True
         if cmd == "d":
             self._scroll_down()
         elif cmd == "u":
             self._scroll_up()
         elif cmd == "r":
-            self._reload()
-
+            return -1 # exit status for cmd_manager. he will stop his work and call full reload
         elif cmd == "timeout" or cmd == "on_update":
             self.update_mode = cmd
         
-        return
+        elif cmd == -1:
+            self._reload()
+
+        return 0
 
     def _reload(self):
         self.exit_st[0] = True
@@ -158,6 +162,8 @@ class Monitoring:
 
     def _quit(self):
         os.system('cls' if os.name == 'nt' else 'clear')
+        self.reload_st = False
+        self.terminal_enabled_st = False
         self.exit_st[0] = True
 
     def _force_update(self):
