@@ -2,6 +2,10 @@ import requests
 import threading
 import re
 import json
+import copy
+
+import socketio
+
 
 import api.session
 import api.info
@@ -16,22 +20,30 @@ from datetime import datetime, timedelta
 from kbhit import KBHit
 
 import cmd_manager
+import utils
+
+class MonitoringSet:
+    def __init__(self):
+        self.timeout = 5
+        self.terminal_enabled_st = False
+        self.mode = "on_update"
 
 class Monitoring:
-    def __init__(self, data, exit_st, terminal_enabled_st=False, update_mode="on_update"): # size - terminal size
+    def __init__(self, data, exit_st, set: MonitoringSet): # size - terminal size
         self.exit_st = exit_st
         self.data = data
         self.size = os.get_terminal_size()
         self.update = True
         self.reload_st = True
-        self.timeout = 5
         self.last_update = datetime.now()
         self.pause = False
         self._force_st = False
         self._first_run = True
         self.wait_st = [True]
-        self.terminal_enabled_st = terminal_enabled_st
-        self.update_mode = update_mode
+
+        self.packets_got = 0
+
+        self.set = set
 
         self.headers = ["id", "verified", "name", "host", "lastseen", "lastlogs", "lastupdate", "region", "institution", "cpu_temp"] # just consts from server
 
@@ -43,24 +55,32 @@ class Monitoring:
         for i in range(len(data)):
             self.data[i] = self.data[i][0:4] + self.data[i][5:len(self.data[i])]
 
-        if not terminal_enabled_st:
+        if not self.set.terminal_enabled_st:
             self._keyboard_thread = threading.Thread(target=self._key_reader, daemon=True)
             self._keyboard_thread.start()
+
+        if self.set.mode == "timeout":
+            self.update = False
 
     def show_devices(self):
         try:
             while not self.exit_st[0]:
                 if not self._force_st:
+                    if self.pause:
+                        continue
                     if not self.update:
-                        if self.update_mode == "timeout":
-                            if datetime.now() > self.last_update + timedelta(seconds=self.timeout):
-                                self.last_update = datetime.now()
-                            else:    
-                                continue
+                        if self.set.mode == "timeout":
+                            if not self._first_run:
+                                if datetime.now() > self.last_update + timedelta(seconds=self.set.timeout):
+                                    self.last_update = datetime.now()
+                                    print("timed out")
+                                else:    
+                                    continue
                         else:
                             continue
                     else:
-                        if self.update_mode != "on_update":
+                        if self.set.mode != "on_update":
+                            self.update = False
                             continue
                 else:
                     self._force_st = False
@@ -100,7 +120,7 @@ class Monitoring:
                 self.update = False
                 self.wait_st[0] = True
 
-                if self.terminal_enabled_st and self._first_run:
+                if self.set.terminal_enabled_st and self._first_run:
                     self._pause()
                     threading.Thread(target=self._enter_terminal, daemon=True).start()
                 self._first_run = False
@@ -121,13 +141,14 @@ class Monitoring:
         self.update = True
 
     def _enter_terminal(self):
-        if not self.terminal_enabled_st:
+        if not self.set.terminal_enabled_st:
             self._pause()
             print("you are in monitoring mode terminal. you can go back to monitoring by pressing [q]. [d], [u], [r] works too.")
-        self.terminal_enabled_st = True
+        self.set.terminal_enabled_st = True
         self.wait_st[0] = True
         cmd_manager.main(self.exit_st, entry_point="monitoring", cmd_controller=self._cmd_controller, wait_st=self.wait_st)
-        self.terminal_enabled_st = False
+        time.sleep(3)
+        self.set.terminal_enabled_st = False
         self._unpause()
         self._force_st = True
         self._keyboard_thread = threading.Thread(target=self._key_reader, daemon=True)
@@ -142,7 +163,7 @@ class Monitoring:
         elif cmd == "r":
             return -1 # exit status for cmd_manager. he will stop his work and call full reload
         elif cmd == "timeout" or cmd == "on_update":
-            self.update_mode = cmd
+            self.set.mode = cmd
         
         elif cmd == -1:
             self._reload()
@@ -163,10 +184,10 @@ class Monitoring:
     def _quit(self):
         os.system('cls' if os.name == 'nt' else 'clear')
         self.reload_st = False
-        self.terminal_enabled_st = False
+        self.set.terminal_enabled_st = False
         self.exit_st[0] = True
 
-    def _force_update(self):
+    def _update(self):
         self.update = True
 
     def _calculate_column_size(self):
@@ -192,77 +213,57 @@ class Monitoring:
                 elif c == "q":
                     self._quit()
                     break
-
-def _data_thread_getter(local_stream_raw, exit_st):
-    while not exit_st[0]:
-        try:
-            r = requests.post(api.session.host + "/api/admin/statistics", headers={"Authorization": "Bearer " + api.session.token}, stream=True)
-            for line in r.iter_lines():
-                if exit_st[0]: # by pointer
-                    break
-                if line:
-                    decoded_line = line.decode('utf-8')
-                    local_stream_raw.add(decoded_line)
-        except:
-            pass
-
-def _data_thread_handler(local_stream_raw: RAWStream, local_stream: Stream, exit_st):
-    while not exit_st[0]:
-        if "[ResponseStart]" in local_stream_raw.data and "[ResponseEnd]" in local_stream_raw.data:
-            data = local_stream_raw.data
-            start_idx = data.index("[ResponseStart]")
-            end_idx = data.index("[ResponseEnd]")
-            response = data[start_idx+15:end_idx]
-            local_stream.add(json.loads(response))
-            local_stream_raw.read(start_idx, end_idx+13)
-
-def _data_thread_setter(local_stream: Stream, data, headers, exit_st):
-    while not exit_st[0]:
-        if len(local_stream.queue) > 0:
-            for body in local_stream.queue[0]["data"]:
-                _process_body(data, body, headers)
-            local_stream.read()
+    
+    def inc_packets_got(self):
+        self.packets_got += 1
 
 def _process_body(data, body, monitor: Monitoring):
     for i in range(len(data)):
-        if data[i][0] == body["content"]["id"]:
-            for key in body["content"].keys():
+        if data[i][0] == body["id"]:
+            for key in body.keys():
                 try:
                     idx = monitor.headers.index(key)
-                    data[i][idx] = body["content"][key]
+                    data[i][idx] = body[key]
                 except: pass
-            monitor._force_update()
+            if monitor.set.mode == "on_update":
+                monitor._update()
             break
 
+def _data_parse_stream(monitor: Monitoring):
+    sio = socketio.Client()
 
-def monitor_all(size, term_st=False, update_mode="on_update"):
+    @sio.event
+    def update(data):
+        monitor.inc_packets_got()
+        _process_body(monitor.data, data, monitor)
+
+
+    sio.connect(api.session.host + "/monitoring", headers={"Authorization": "Bearer " + api.session.token})
+    sio.wait()
+
+
+def monitor_all(size, set: MonitoringSet):
     if api.session.token == "":
         print("not authed")
-        return
+        return False, set
+    
+    print("setting up streaming")
+
     ret, data = api.info.get_devices()
     if ret != 0:
         print(data)
         return
     exit_st = [False] # pointers fuck u...
 
-    
-    monitor = Monitoring(data, exit_st, term_st, update_mode)
-    local_stream = Stream()
-    local_stream_raw = RAWStream()
+    monitor = Monitoring(data, exit_st, set)
+
+    data_thread = threading.Thread(target=_data_parse_stream, args=(monitor, ), daemon=True)
+    data_thread.start()
 
     ui_thread = threading.Thread(target=monitor.show_devices, daemon=True)
-
-    data_getting_thread = threading.Thread(target=_data_thread_getter, args=(local_stream_raw, exit_st, ), daemon=True)
-    data_handling_thread = threading.Thread(target=_data_thread_handler, args=(local_stream_raw, local_stream, exit_st, ), daemon=True)
-    data_setting_thread = threading.Thread(target=_data_thread_setter, args=(local_stream, data, monitor, exit_st, ), daemon=True)
-
     ui_thread.start()
-
-    data_getting_thread.start()
-    data_handling_thread.start()
-    data_setting_thread.start()
 
     while not exit_st[0]:
         pass
 
-    return monitor.reload_st, monitor.terminal_enabled_st, monitor.update_mode
+    return monitor.reload_st, copy.deepcopy(monitor.set)

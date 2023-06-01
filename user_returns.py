@@ -14,6 +14,7 @@ unverified - list all unverified devices and info about them
 info [id] - get current info about device
 approve [id] - approve device with id
 monitor_all - real time monitoring of all devices. enables monitoring mode
+monitor_all [mode] - same as monitor_all, but with presetted monitoring mode. on_update or timeout
 
 [monitoring mode only]
 set_monitoring_mode [on_update/timeout] - sets monitoring mode
@@ -28,30 +29,8 @@ delete_user [username]
 register - register a user
 
 [notes]
-implemented - see really implemented functions. listed upper are not fully implemented
 exit - exit
 quit - quit
 clear - clear screen
 cls - clear screen
-"""
-
-IMPLEMENTED_LIST = """
-[implemented]
-cls
-quit
-login
-session_info
-set_host
-get_token
-get_host
-get_events
-read_events
-register
-approve
-delete_user
-info
-devices
-unverified
-monitor_all
-set_monitoring_mode
 """

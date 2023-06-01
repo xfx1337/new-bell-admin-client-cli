@@ -42,7 +42,7 @@ def main(exit_st, entry_point="main", cmd_controller=None, wait_st=[True]):
                     time.sleep(3)
                 cmd_controller(cmd.split()[1])
                 if cmd.split()[1] == "timeout":
-                    cmd_controller("q")
+                    cmd_controller("r")
                     local_st = -1
                     break # exit func because main thread said
 
@@ -107,16 +107,23 @@ def main(exit_st, entry_point="main", cmd_controller=None, wait_st=[True]):
                     continue
                 monitoring.show_devices(data, os.get_terminal_size())
 
-            elif cmd == "monitor_all":
+            elif cmd.startswith("monitor_all"):
                 if entry_point != "main":
                     print("exit the table first")
                     continue
-                ret, term_st, update_mode = monitoring.monitor_all(os.get_terminal_size())
+                
+                monitoring_set = monitoring.MonitoringSet()
+                if len(cmd.split()) > 1:
+                    monitoring_set.mode = cmd.split()[1]
+                
+                ret, monitoring_set = monitoring.monitor_all(os.get_terminal_size(), monitoring_set)
                 while ret != False: # for reloading
-                    ret, term_st, update_mode = monitoring.monitor_all(os.get_terminal_size(), term_st=term_st, update_mode=update_mode)
+                    ret, monitoring_set = monitoring.monitor_all(os.get_terminal_size(), monitoring_set)
 
-            elif cmd == "implemented":
-                print(user_returns.IMPLEMENTED_LIST)
+            elif cmd == "dbg":
+                import threading
+                for t in threading.enumerate():
+                    print(t.name)
 
             elif cmd == "help":
                 print(user_returns.HELP)

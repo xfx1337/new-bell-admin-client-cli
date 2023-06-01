@@ -1,5 +1,6 @@
 import api.session
 import getpass
+import threading
 
 privileges_list = ["owner", "admin", "user", "monitor"]
 
@@ -41,3 +42,12 @@ def approve_device_handler(id):
     institution = input("institution: ")
 
     return api.auth.approve_device(id, name, region, institution)
+
+def get_running_threads():
+    threads = []
+    for thread in threading.enumerate():
+        if len(thread.name.split()) > 1:
+            threads.append(thread.name.split()[1].replace("(", "").replace(")", ""))
+        else:
+            threads.append(thread.name)
+    return threads
