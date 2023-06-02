@@ -1,6 +1,5 @@
 import os, sys
 import getpass
-
 import api.session
 import api.auth
 import api.info
@@ -8,7 +7,9 @@ import api.info
 import user_returns
 import monitoring
 import utils
+
 import time
+import threading
 
 def main(exit_st, entry_point="main", cmd_controller=None, wait_st=[True]):
     local_st = 0
@@ -36,16 +37,13 @@ def main(exit_st, entry_point="main", cmd_controller=None, wait_st=[True]):
                 if entry_point != "monitoring":
                     print("you are not in monitoring mode")
                     continue
-                wait_st[0] = False
-                if cmd.split()[1] == "timeout":
-                    print("terminal is not supported in this mode. you can go back in terminal by pressing [t]")
-                    time.sleep(3)
                 cmd_controller(cmd.split()[1])
-                if cmd.split()[1] == "timeout":
-                    cmd_controller("r")
-                    local_st = -1
-                    break # exit func because main thread said
 
+            elif cmd.startswith("set_monitoring_timeout"):
+                if entry_point != "monitoring":
+                    print("you are not in monitoring mode")
+                    continue
+                cmd_controller(cmd)
 
             elif cmd.startswith("login"):
                 username = cmd.split()[1]
@@ -115,15 +113,19 @@ def main(exit_st, entry_point="main", cmd_controller=None, wait_st=[True]):
                 monitoring_set = monitoring.MonitoringSet()
                 if len(cmd.split()) > 1:
                     monitoring_set.mode = cmd.split()[1]
-                
+                    if len(cmd.split()) > 2:
+                        monitoring_set.timeout = int(cmd.split()[2])
+
                 ret, monitoring_set = monitoring.monitor_all(os.get_terminal_size(), monitoring_set)
                 while ret != False: # for reloading
                     ret, monitoring_set = monitoring.monitor_all(os.get_terminal_size(), monitoring_set)
 
-            elif cmd == "dbg":
-                import threading
+            elif cmd == "dbg_show_threads":
                 for t in threading.enumerate():
                     print(t.name)
+            
+            elif cmd.startswith("dbg_exec"):
+                exec(cmd[9:])
 
             elif cmd == "help":
                 print(user_returns.HELP)

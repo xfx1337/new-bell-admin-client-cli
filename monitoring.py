@@ -10,9 +10,6 @@ import socketio
 import api.session
 import api.info
 
-from simple_stream import Stream
-from raw_stream import RAWStream
-
 import os
 import time
 from datetime import datetime, timedelta
@@ -21,6 +18,8 @@ from kbhit import KBHit
 
 import cmd_manager
 import utils
+
+import socketio
 
 class MonitoringSet:
     def __init__(self):
@@ -73,7 +72,6 @@ class Monitoring:
                             if not self._first_run:
                                 if datetime.now() > self.last_update + timedelta(seconds=self.set.timeout):
                                     self.last_update = datetime.now()
-                                    print("timed out")
                                 else:    
                                     continue
                         else:
@@ -155,18 +153,25 @@ class Monitoring:
         self._keyboard_thread.start()
 
     def _cmd_controller(self, cmd):
-        self._force_st = True
         if cmd == "d":
+            self._force_st = True
             self._scroll_down()
         elif cmd == "u":
+            self._force_st = True
             self._scroll_up()
         elif cmd == "r":
+            self._force_st = True
             return -1 # exit status for cmd_manager. he will stop his work and call full reload
         elif cmd == "timeout" or cmd == "on_update":
             self.set.mode = cmd
-        
+
         elif cmd == -1:
             self._reload()
+
+        else:
+            if type(cmd) == type(""):
+                if cmd.startswith("set_monitoring_timeout"):
+                    self.set.timeout = int(cmd.split()[1])
 
         return 0
 
@@ -232,13 +237,22 @@ def _process_body(data, body, monitor: Monitoring):
 def _data_parse_stream(monitor: Monitoring):
     sio = socketio.Client()
 
-    @sio.event
+    @sio.event(namespace="/monitoring")
     def update(data):
         monitor.inc_packets_got()
         _process_body(monitor.data, data, monitor)
 
+    @sio.event(namespace="/monitoring")
+    def disconnect():
+        monitor.exit_st[0] = True
 
-    sio.connect(api.session.host + "/monitoring", headers={"Authorization": "Bearer " + api.session.token})
+    def disconnection_task(exit_st):
+        while not exit_st[0]:
+            pass
+        sio.disconnect()
+
+    sio.connect(api.session.host, headers={"Authorization": "Bearer " + api.session.token}, namespaces=["/monitoring"])
+    disconnection_task_thread = sio.start_background_task(disconnection_task, monitor.exit_st)
     sio.wait()
 
 
@@ -247,7 +261,7 @@ def monitor_all(size, set: MonitoringSet):
         print("not authed")
         return False, set
     
-    print("setting up streaming")
+    print("setting up")
 
     ret, data = api.info.get_devices()
     if ret != 0:
