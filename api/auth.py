@@ -4,6 +4,20 @@ import hashlib
 import api.session
 import api.utils
 
+import utils
+
+def logout():
+    api.session.username = ""
+    api.session.token = ""
+    api.session.privileges = ""
+    api.session.current_session_file = None
+
+def login_by_session(session):
+    r = requests.post(session["host"] + "/api/valid_token", headers={"Authorization": "Bearer " + session["token"]})
+    if r.status_code != 200:
+        return -1
+    return 0
+
 def login(username, password):
     data = {"username": username, "password": hashlib.md5(password.encode("utf-8")).hexdigest()}
     r = requests.post(api.session.host + "/api/login", json = data)
@@ -11,13 +25,15 @@ def login(username, password):
         return "can't login. response: " + r.text
     else:
         api.session.username = username
-        api.session.password = password
         api.session.token = r.json()["token"]
 
         r = api.utils.authed_post(api.session.host + "/api/users/info", {"username": username})
         if r.status_code != 200:
             return "successfull auth, but couldn't get privileges. response: " + r.text
         api.session.privileges = r.json()["privileges"]
+        if api.session.current_session_file == None:
+            api.session.current_session_file = username + ".session"
+        utils.save_session()
         return "successfull auth"
 
 def register_user(username, password, privileges):

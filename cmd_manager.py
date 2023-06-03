@@ -4,8 +4,10 @@ import api.session
 import api.auth
 import api.info
 
+import session_manager
+
 import user_returns
-import monitoring
+import monitoring.monitoring
 import utils
 
 import time
@@ -46,12 +48,26 @@ def main(exit_st, entry_point="main", cmd_controller=None, wait_st=[True]):
                 cmd_controller(cmd)
 
             elif cmd.startswith("login"):
+                api.auth.logout()
                 username = cmd.split()[1]
                 password = getpass.getpass(prompt="password:")
                 print(api.auth.login(username, password))
 
+            elif cmd == "logout":
+                api.auth.logout()
+            
+            elif cmd == "sessions":
+                print(utils.get_sessions_text())
+            
+            elif cmd == "session_info":
+                print(utils.get_session())
+
+            elif cmd.startswith("session"):
+                print(utils.login_by_session_wrapper(cmd.split()[1]))
+
             elif cmd.startswith("set_host"):
                 api.session.host = cmd.split()[1]
+                utils.save_session()
                 print("host changed")
 
             elif cmd == "get_host":
@@ -59,9 +75,6 @@ def main(exit_st, entry_point="main", cmd_controller=None, wait_st=[True]):
 
             elif cmd == "get_token":
                 print(utils.get_token())
-
-            elif cmd == "session_info":
-                print(utils.get_session())
 
             elif cmd == "get_events":
                 print(api.info.get_events())

@@ -1,9 +1,12 @@
 HELP = """
 [auth]
 login [username] - login with username
-session_info - info about current session
+session [name] - login in by session
+logout - logout from account
 
-[session]
+[sessions]
+sessions - list sessions
+session_info - info about current session
 set_host [host] - change host
 get_host - returns your current host
 get_token - returns your token

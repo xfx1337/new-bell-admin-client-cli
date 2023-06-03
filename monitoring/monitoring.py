@@ -14,9 +14,10 @@ import os
 import time
 from datetime import datetime, timedelta
 
-from kbhit import KBHit
+from monitoring.kbhit import KBHit
 
 import cmd_manager
+import configuration
 import utils
 
 import socketio
@@ -164,6 +165,7 @@ class Monitoring:
             return -1 # exit status for cmd_manager. he will stop his work and call full reload
         elif cmd == "timeout" or cmd == "on_update":
             self.set.mode = cmd
+            utils.update_configuration("monitoring_mode", cmd)
 
         elif cmd == -1:
             self._reload()
@@ -172,6 +174,7 @@ class Monitoring:
             if type(cmd) == type(""):
                 if cmd.startswith("set_monitoring_timeout"):
                     self.set.timeout = int(cmd.split()[1])
+                    utils.update_configuration("monitoring_timeout", int(cmd.split()[1]))
 
         return 0
 
@@ -257,6 +260,8 @@ def _data_parse_stream(monitor: Monitoring):
 
 
 def monitor_all(size, set: MonitoringSet):
+    utils.update_configuration("mon_set", set)
+    
     if api.session.token == "":
         print("not authed")
         return False, set
