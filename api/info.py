@@ -62,3 +62,14 @@ def get_devices(unverified=False):
     if len(data) == 0:
         return -1, "no devices"
     return 0, data
+
+def get_sql(sql):
+    if api.session.token == "":
+        return -1, "not authed"
+    r = api.utils.authed_post(api.session.host + "/api/admin/sql_get", {"query": sql})
+    if r.status_code != 200:
+        return -1, r.text
+    data = r.json()
+    if len(data["data"]) == 0:
+        return -1, "nothing found"
+    return 0, data["data"]

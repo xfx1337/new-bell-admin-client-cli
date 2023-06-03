@@ -69,6 +69,7 @@ def get_sessions_text():
 def load_configuration(session):
     configuration.monitoring_mode = session["monitoring_mode"]
     configuration.monitoring_timeout = session["monitoring_timeout"]
+    configuration.colored = session["colored"]
 
 def save_session():
     obj = {"new-bell-admin-session": {}, "new-bell-admin-configuration": {}}
@@ -79,10 +80,12 @@ def save_session():
 
     obj["new-bell-admin-configuration"]["monitoring_mode"] = configuration.monitoring_mode
     obj["new-bell-admin-configuration"]["monitoring_timeout"] = configuration.monitoring_timeout
+    obj["new-bell-admin-configuration"]["colored"] = configuration.colored
 
-    f = open(api.session.current_session_file, "w")
-    f.write(toml.dumps(obj))
-    f.close()
+    if api.session.current_session_file != None:
+        f = open(api.session.current_session_file, "w")
+        f.write(toml.dumps(obj))
+        f.close()
 
 
 def update_configuration(key, value):
@@ -120,3 +123,6 @@ def login_by_session_wrapper(username):
     save_session()
 
     return "logged in " + api.session.username
+
+def get_server_headers():
+    return ["id", "verified", "name", "host", "lastseen", "lastlogs", "lastupdate", "region", "institution", "cpu_temp"] # just consts from server

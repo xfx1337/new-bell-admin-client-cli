@@ -5,15 +5,18 @@ import api.auth
 import api.info
 
 import session_manager
+from selectors_manager import SelectorsManager
+import configuration
 
 import user_returns
-import monitoring.monitoring
+import monitoring.monitoring as monitoring
 import utils
 
 import time
 import threading
 
 def main(exit_st, entry_point="main", cmd_controller=None, wait_st=[True]):
+    selectors_manager = SelectorsManager() # singleton
     local_st = 0
     while not exit_st[0]:
         if entry_point == "monitoring": 
@@ -133,10 +136,69 @@ def main(exit_st, entry_point="main", cmd_controller=None, wait_st=[True]):
                 while ret != False: # for reloading
                     ret, monitoring_set = monitoring.monitor_all(os.get_terminal_size(), monitoring_set)
 
+            elif cmd.startswith("source"):
+                if len(cmd.split()) < 2:
+                    print("you didn't select source of data. read help")
+                    continue
+                source = cmd.split()[1]
+                if source == "monitoring":
+                    if entry_point != "monitoring":
+                        print("you are not in monitoring mode")
+                        continue
+                    selectors_manager.set_data_source(cmd_controller(-2))
+                elif source == "request":
+                    selectors_manager.set_data_source(api.info.get_devices()[1])
+                else:
+                    print("invalid data source")
+                    continue
+            
+            elif cmd.startswith("select_sql"):
+                print(selectors_manager.sql_get(cmd[11:]))
+
+            elif cmd.startswith("select_by"):
+                key = cmd.split()[1].split("=")[0]
+                value = cmd.split("=")[-1].split()[0]
+                print(selectors_manager.select_by(key, value))
+            
+            elif cmd.startswith("update_data"):
+                selectors_manager.set_data_source(api.info.get_devices()[1])
+
+            elif cmd.startswith("clear_selected"):
+                selectors_manager.clear_current_bank()
+
+            elif cmd.startswith("select"):
+                print(selectors_manager.select(list(map(int, cmd.split()[1:]))))
+    
+            elif cmd.startswith("current_ids"):
+                print("ids")
+                print(*selectors_manager.get_selected())
+
+            elif cmd.startswith("current"):
+                if entry_point != "main":
+                    print("exit the table first")
+                    continue
+                if selectors_manager.data == None:
+                    print("set data source first. read help")
+                    continue
+                monitor = monitoring.Monitoring(selectors_manager.data, [False])
+                monitor.show_devices()
+
             elif cmd == "dbg_show_threads":
                 for t in threading.enumerate():
                     print(t.name)
             
+            elif cmd.startswith("dbg_colored"):
+                st = cmd.split()[1]
+                if st == "true":
+                    configuration.colored = True
+                    utils.save_session()
+                elif st == "false":
+                    configuration.colored = False
+                    utils.save_session()
+                else:
+                    print("true/false only")
+                
+
             elif cmd.startswith("dbg_exec"):
                 exec(cmd[9:])
 

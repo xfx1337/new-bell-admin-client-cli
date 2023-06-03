@@ -6,7 +6,6 @@ import copy
 
 import socketio
 
-
 import api.session
 import api.info
 
@@ -17,10 +16,24 @@ from datetime import datetime, timedelta
 from monitoring.kbhit import KBHit
 
 import cmd_manager
+from selectors_manager import SelectorsManager
 import configuration
 import utils
 
 import socketio
+
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+selectors_manager = SelectorsManager()
 
 class MonitoringSet:
     def __init__(self):
@@ -29,7 +42,7 @@ class MonitoringSet:
         self.mode = "on_update"
 
 class Monitoring:
-    def __init__(self, data, exit_st, set: MonitoringSet): # size - terminal size
+    def __init__(self, data, exit_st, set=MonitoringSet()): # size - terminal size
         self.exit_st = exit_st
         self.data = data
         self.size = os.get_terminal_size()
@@ -45,15 +58,12 @@ class Monitoring:
 
         self.set = set
 
-        self.headers = ["id", "verified", "name", "host", "lastseen", "lastlogs", "lastupdate", "region", "institution", "cpu_temp"] # just consts from server
+        self.headers = utils.get_server_headers()
 
-        self.real_columns = len(self.data[0])-1 # not showing password
+        self.real_columns = len(self.data[0]) # not showing password
         self.real_lines = (self.size.lines-7) // 2
 
         self.last_id = 0 # variable storing from what id table is displaing
-
-        for i in range(len(data)):
-            self.data[i] = self.data[i][0:4] + self.data[i][5:len(self.data[i])]
 
         if not self.set.terminal_enabled_st:
             self._keyboard_thread = threading.Thread(target=self._key_reader, daemon=True)
@@ -103,16 +113,27 @@ class Monitoring:
                 print(headers_str + "\n")
                 
                 output = ""
-
+                
+                selected = selectors_manager.get_selected()
                 for i in range(self.last_id, (len(self.data) if self.last_id+self.real_lines > len(self.data)-1 else self.last_id+self.real_lines)):
                     headers_str = ""
                     for j in range(len(self.data[i])):
                         info = self.data[i][j]
+                        if info != None:
+                            if self.headers[j] == "lastseen":
+                                info = datetime.fromtimestamp(int(info)).strftime("%d.%m %H:%M")
+                        
                         if len(str(info)) > len(self.headers[j])+column_size//2:
                             info = str(info)[0:len(self.headers[j])+column_size//2-4] + "..."
                         headers_str = headers_str + " "*(positions[j]-len(headers_str))
                         headers_str += str(info)
-                    output = output + headers_str + "\n\n" 
+                    if i+1 in selected: # because hear math goes by 0, not 1
+                        if configuration.colored:
+                            output = output + bcolors.OKGREEN + headers_str + bcolors.ENDC + "\n\n"
+                        else:
+                            output = output + headers_str + "\n\n" 
+                    else:
+                        output = output + headers_str + "\n\n" 
                 print(output)
                 print("press [d] to scroll down and [u] to scroll up. [r] - data reload. [t] - terminal. [q] - to quit")
 
@@ -169,6 +190,9 @@ class Monitoring:
 
         elif cmd == -1:
             self._reload()
+
+        elif cmd == -2:
+            return self.data
 
         else:
             if type(cmd) == type(""):
