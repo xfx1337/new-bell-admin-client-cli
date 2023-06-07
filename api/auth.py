@@ -6,6 +6,8 @@ import api.utils
 
 import utils
 
+import session_manager
+
 def logout():
     api.session.username = ""
     api.session.token = ""
@@ -33,7 +35,7 @@ def login(username, password):
         api.session.privileges = r.json()["privileges"]
         if api.session.current_session_file == None:
             api.session.current_session_file = username + ".session"
-        utils.save_session()
+        session_manager.save_session()
         return "successfull auth"
 
 def register_user(username, password, privileges):

@@ -4,11 +4,25 @@ import session_manager
 
 import getpass
 import threading
-import toml
 
 import os
 
+from sockets_manager import SocketIO
+
+socketIO = SocketIO()
+
 privileges_list = ["owner", "admin", "user", "monitor"]
+
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = 'p'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
 def soft_exit():
     exit_st = True
@@ -71,22 +85,9 @@ def load_configuration(session):
     configuration.monitoring_timeout = session["monitoring_timeout"]
     configuration.colored = session["colored"]
 
-def save_session():
-    obj = {"new-bell-admin-session": {}, "new-bell-admin-configuration": {}}
-
-    obj["new-bell-admin-session"]["host"] = api.session.host
-    obj["new-bell-admin-session"]["token"] = api.session.token
-    obj["new-bell-admin-session"]["username"] = api.session.username
-
-    obj["new-bell-admin-configuration"]["monitoring_mode"] = configuration.monitoring_mode
-    obj["new-bell-admin-configuration"]["monitoring_timeout"] = configuration.monitoring_timeout
-    obj["new-bell-admin-configuration"]["colored"] = configuration.colored
-
-    if api.session.current_session_file != None:
-        f = open(api.session.current_session_file, "w")
-        f.write(toml.dumps(obj))
-        f.close()
-
+    configuration.failsafe_mode = session["failsafe_mode"]
+    configuration.failsafe_timeout = session["failsafe_timeout"]
+    configuration.wait_mode = session["wait_mode"]
 
 def update_configuration(key, value):
     if key == "mon_set":
@@ -99,7 +100,7 @@ def update_configuration(key, value):
         except Exception as e:
             print("couldn't update configuration: " + str(e))
     
-    save_session()
+    session_manager.save_session()
 
 def login_by_session_wrapper(username):
     session_id = session_manager.get_session_id_by_username(username)
@@ -120,9 +121,21 @@ def login_by_session_wrapper(username):
     api.session.privileges = r.json()["privileges"]
     if api.session.current_session_file == None:
         api.session.current_session_file = username + ".session"
-    save_session()
+    session_manager.save_session()
 
     return "logged in " + api.session.username
 
 def get_server_headers():
     return ["id", "verified", "name", "host", "lastseen", "lastlogs", "lastupdate", "region", "institution", "cpu_temp"] # just consts from server
+
+def print_configuration():
+    out = f"""
+monitoring_mode = {configuration.monitoring_mode}
+monitoring_timeout = {configuration.monitoring_timeout}
+colored = {configuration.colored}
+
+wait_mode = {configuration.wait_mode}
+failsafe_mode = {configuration.failsafe_mode}
+failsafe_timeout = {configuration.failsafe_timeout}
+    """
+    print(out)

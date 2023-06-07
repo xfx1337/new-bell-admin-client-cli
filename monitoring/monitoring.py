@@ -17,21 +17,11 @@ from monitoring.kbhit import KBHit
 
 import cmd_manager
 from selectors_manager import SelectorsManager
+from sockets_manager import SocketIO
 import configuration
 import utils
 
-import socketio
-
-class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
+from utils import bcolors
 
 selectors_manager = SelectorsManager()
 
@@ -53,6 +43,8 @@ class Monitoring:
         self._force_st = False
         self._first_run = True
         self.wait_st = [True]
+
+        self.connected = False
 
         self.packets_got = 0
 
@@ -249,6 +241,15 @@ class Monitoring:
     def inc_packets_got(self):
         self.packets_got += 1
 
+    def mon_callback(self, event, data):
+        if event == "update":
+            self.inc_packets_got()
+            _process_body(self.data, data, self)
+        
+        elif event == "establish":
+            print("connection established")
+            self.connected = True
+
 def _process_body(data, body, monitor: Monitoring):
     for i in range(len(data)):
         if data[i][0] == body["id"]:
@@ -260,28 +261,7 @@ def _process_body(data, body, monitor: Monitoring):
             if monitor.set.mode == "on_update":
                 monitor._update()
             break
-
-def _data_parse_stream(monitor: Monitoring):
-    sio = socketio.Client()
-
-    @sio.event(namespace="/monitoring")
-    def update(data):
-        monitor.inc_packets_got()
-        _process_body(monitor.data, data, monitor)
-
-    @sio.event(namespace="/monitoring")
-    def disconnect():
-        monitor.exit_st[0] = True
-
-    def disconnection_task(exit_st):
-        while not exit_st[0]:
-            pass
-        sio.disconnect()
-
-    sio.connect(api.session.host, headers={"Authorization": "Bearer " + api.session.token}, namespaces=["/monitoring"])
-    disconnection_task_thread = sio.start_background_task(disconnection_task, monitor.exit_st)
-    sio.wait()
-
+        
 
 def monitor_all(size, set: MonitoringSet):
     utils.update_configuration("mon_set", set)
@@ -300,8 +280,9 @@ def monitor_all(size, set: MonitoringSet):
 
     monitor = Monitoring(data, exit_st, set)
 
-    data_thread = threading.Thread(target=_data_parse_stream, args=(monitor, ), daemon=True)
-    data_thread.start()
+    socketio_manager = SocketIO()
+
+    socketio_manager.set_mon_callback(monitor.mon_callback)
 
     ui_thread = threading.Thread(target=monitor.show_devices, daemon=True)
     ui_thread.start()

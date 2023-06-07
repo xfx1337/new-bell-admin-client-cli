@@ -36,6 +36,15 @@ class SelectorsManager:
         ret, ids = api.info.get_sql(sql)
         if ret != 0:
             return "couldn't make sql query. error: " + str(ids)
+        
+        if len(ids) == 1:
+            ids = [ids[0][0]]
+        else:
+            temp = []
+            for i in ids:
+                temp.append(i[0])
+            ids = temp
+
         self.current_bank = {"key": "sql", "value": sql, "ids": ids}  
         return "selected"
 
