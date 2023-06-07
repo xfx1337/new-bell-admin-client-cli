@@ -110,8 +110,10 @@ class ADMRequestManager:
         self.current_watching = execution_id
         self.responsed = False
 
+        print("")
+
         for r in self.processes[execution_id]["responses"]:
-            print_response(r)
+            print_response({"content": self.processes[execution_id]["responses"][r]})
 
         if self.processes[execution_id]["done"]:
             return
