@@ -57,6 +57,9 @@ class Monitoring:
 
         self.last_id = 0 # variable storing from what id table is displaing
 
+        for i in range(len(self.data)):
+            self.data[i].append("OK") # flag
+
         if not self.set.terminal_enabled_st:
             self._keyboard_thread = threading.Thread(target=self._key_reader, daemon=True)
             self._keyboard_thread.start()
@@ -91,6 +94,10 @@ class Monitoring:
                 os.system('cls' if os.name == 'nt' else 'clear')
                 
                 print(f"showing devices from {self.last_id+1} to {(len(self.data)-1 if self.last_id+self.real_lines > len(self.data)-1 else self.last_id+self.real_lines-1)+1}. total: {len(self.data)}")
+                if configuration.only_selected:
+                    print("only selected")
+                if configuration.only_down:
+                    print("only devices that are down")
                 print("")
 
                 column_size = self._calculate_column_size()    
@@ -109,23 +116,41 @@ class Monitoring:
                 selected = selectors_manager.get_selected()
                 for i in range(self.last_id, (len(self.data) if self.last_id+self.real_lines > len(self.data)-1 else self.last_id+self.real_lines)):
                     headers_str = ""
-                    for j in range(len(self.data[i])):
+                    for j in range(len(self.data[i][:-1])): # fuck
                         info = self.data[i][j]
                         if info != None:
                             if self.headers[j] == "lastseen":
-                                info = datetime.fromtimestamp(int(info)).strftime("%d.%m %H:%M")
-                        
+                                time_seen = datetime.fromtimestamp(int(info))
+                                info = time_seen.strftime("%d.%m %H:%M")
+
                         if len(str(info)) > len(self.headers[j])+column_size//2:
                             info = str(info)[0:len(self.headers[j])+column_size//2-4] + "..."
                         headers_str = headers_str + " "*(positions[j]-len(headers_str))
                         headers_str += str(info)
-                    if i+1 in selected: # because hear math goes by 0, not 1
+
+                    if configuration.only_down:
+                        if self.data[i][-1] != "DOWN":
+                            continue
+                    if configuration.only_selected:
+                        if i+1 not in selected:
+                            continue
+                        
+                    if i+1 in selected: # because here math goes by 0, not 1
                         if configuration.colored:
                             output = output + bcolors.OKGREEN + headers_str + bcolors.ENDC + "\n\n"
-                        else:
-                            output = output + headers_str + "\n\n" 
                     else:
-                        output = output + headers_str + "\n\n" 
+                        if configuration.colored:
+                            if self.data[i][-1] == "DOWN": # FUCK!
+                                output = output + bcolors.FAIL + headers_str + bcolors.ENDC + "\n\n" # main priority is DOWN
+                            else:
+                                try:
+                                    if float(self.data[i][self.headers.index("cpu_temp")]) > 70:
+                                        output = output + bcolors.WARNING + headers_str + bcolors.ENDC + "\n\n"
+                                    else:
+                                        output = output + headers_str + "\n\n" 
+                                except:
+                                    output = output + headers_str + "\n\n" 
+
                 print(output)
                 print("press [d] to scroll down and [u] to scroll up. [r] - data reload. [t] - terminal. [q] - to quit")
 
@@ -250,6 +275,24 @@ class Monitoring:
             print("connection established")
             self.connected = True
 
+    def flag_checker(self):
+        update_st = False
+        while not self.exit_st[0]:
+            for i in range(len(self.data)):
+                try:
+                    time_seen = datetime.fromtimestamp(int(self.data[i][self.headers.index("lastseen")]))
+                    if time_seen + timedelta(minutes=2) < datetime.now():
+                        if self.data[i][-1] != "DOWN":
+                            self.data[i][-1] = "DOWN"
+                            update_st = True
+                except:
+                    pass
+            if update_st:
+                if self.set.mode == "on_update":
+                    self._update()
+                update_st = False
+            time.sleep(30)
+
 def _process_body(data, body, monitor: Monitoring):
     for i in range(len(data)):
         if data[i][0] == body["id"]:
@@ -258,6 +301,8 @@ def _process_body(data, body, monitor: Monitoring):
                     idx = monitor.headers.index(key)
                     data[i][idx] = body[key]
                 except: pass
+            data[i][-1] = "OK"
+
             if monitor.set.mode == "on_update":
                 monitor._update()
             break
@@ -283,6 +328,9 @@ def monitor_all(size, set: MonitoringSet):
     socketio_manager = SocketIO()
 
     socketio_manager.set_mon_callback(monitor.mon_callback)
+
+    flag_checker_thread = threading.Thread(target=monitor.flag_checker, daemon=True)
+    flag_checker_thread.start()
 
     ui_thread = threading.Thread(target=monitor.show_devices, daemon=True)
     ui_thread.start()

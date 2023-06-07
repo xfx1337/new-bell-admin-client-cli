@@ -19,6 +19,8 @@ approve [id] - approve device with id
 monitor_all - real time monitoring of all devices. enables monitoring mode
 monitor_all [mode] - same as monitor_all, but with presetted monitoring mode. on_update or timeout
 monitor_all timeout [seconds] - same as monitor_all, but with pressetted mode and timeout(only in timeout mode)
+only_selected [true/false] - monitor or see only selected devices
+only_down [true/false] - monitor or see only devices that are down
 
 [monitoring mode only]
 set_monitoring_mode [on_update/timeout] - sets monitoring mode

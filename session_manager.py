@@ -35,6 +35,7 @@ def _process_session(obj):
         return session
     
     session["status"] = "ok"
+    
     return session
 
 def set_main_session(session):

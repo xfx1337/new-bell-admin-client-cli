@@ -130,6 +130,26 @@ def main(exit_st, entry_point="main", cmd_controller=None, wait_st=[True]):
                     continue
                 monitoring.show_devices(data, os.get_terminal_size())
 
+            elif cmd.startswith("only_selected"):
+                st = cmd.split()[1]
+                if st == "true":
+                    configuration.only_selected = True
+                    configuration.only_down = False
+                elif st == "false":
+                    configuration.only_selected = False
+                else:
+                    print("true/false only")
+                    
+            elif cmd.startswith("only_down"):
+                st = cmd.split()[1]
+                if st == "true":
+                    configuration.only_down = True
+                    configuration.only_selected = False
+                elif st == "false":
+                    configuration.only_down = False
+                else:
+                    print("true/false only")
+
             elif cmd.startswith("monitor_all"):
                 if entry_point != "main":
                     print("exit the table first")
@@ -231,6 +251,8 @@ def main(exit_st, entry_point="main", cmd_controller=None, wait_st=[True]):
                     configuration.failsafe_mode = True
                 elif st == "false":
                     configuration.failsafe_mode = False
+                else:
+                    print("true/false only")
                 session_manager.save_session()
 
             elif cmd.startswith("execute_wait_mode"):
@@ -239,6 +261,8 @@ def main(exit_st, entry_point="main", cmd_controller=None, wait_st=[True]):
                     configuration.wait_mode = True
                 elif st == "false":
                     configuration.wait_mode = False
+                else:
+                    print("true/false only")
                 session_manager.save_session()
 
             elif cmd.startswith("execute"):

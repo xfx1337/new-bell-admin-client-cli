@@ -58,7 +58,7 @@ class SocketIO:
             self.connected = False
             self.exit_st_force[0] = False
 
-        self.sio.connect(api.session.host, headers={"Authorization": "Bearer " + api.session.token}, namespaces=["/mainIO"])
+        self.sio.connect(api.session.host, headers={"Authorization": "Bearer " + api.session.token}, namespaces=["/mainIO"], wait_timeout = 10)
         disconnection_task_thread = self.sio.start_background_task(disconnection_task, self.exit_st, self.exit_st_force)
         self.sio.wait()
     
