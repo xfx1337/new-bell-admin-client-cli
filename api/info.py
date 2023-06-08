@@ -44,14 +44,15 @@ def get_device_info(id):
     r = api.utils.authed_post(api.session.host + "/api/devices/info", {"id": int(id)})
     if r.status_code != 200:
         return "couldn't get info. reponse: " + r.text
-    
+
     data = r.json()
     output = "\ndevice:\n"
     for key in data.keys():
-        if key == "time":
-            output += (f"{key}: {datetime.fromtimestamp(data[key])}\n")
+        if key == "time" or key == "lastseen":
+            output += (f"{key}: {datetime.fromtimestamp(int(data[key])).strftime('%d.%m %H:%M')}\n")
         else:    
-            output += (f"{key}: {data[key]}\n")
+            info = str(data[key]).replace('\n', '\\n')
+            output += (f"{key}: {info}\n")
     return output
 
 def get_devices(unverified=False):
