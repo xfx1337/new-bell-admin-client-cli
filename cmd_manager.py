@@ -25,10 +25,11 @@ def main(exit_st, entry_point="main", cmd_controller=None, wait_st=[True]):
     selectors_manager = SelectorsManager() # singleton
     local_st = 0
     while not exit_st[0]:
-        if entry_point == "monitoring": 
-            if not wait_st[0]: # waiting for table to be showed
-                continue
         try:
+            if entry_point == "monitoring": 
+                if not wait_st[0]: # waiting for table to be showed
+                    continue
+
             cmd = input(">>> ")
 
             if cmd == "":
@@ -139,7 +140,7 @@ def main(exit_st, entry_point="main", cmd_controller=None, wait_st=[True]):
                     configuration.only_selected = False
                 else:
                     print("true/false only")
-                    
+
             elif cmd.startswith("only_down"):
                 st = cmd.split()[1]
                 if st == "true":
@@ -306,9 +307,14 @@ def main(exit_st, entry_point="main", cmd_controller=None, wait_st=[True]):
         except KeyboardInterrupt:
             print("^C")
             continue
-        except Exception as e:
-            print(e)
+        except EOFError:
+            print("^C")
+            continue
+        except SystemExit:
+            sys.exit(0)
+        except:
             print("syntax error. read help")
+            continue
     if local_st == -1:
         cmd_controller(-1)
     return

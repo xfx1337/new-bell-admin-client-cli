@@ -5,7 +5,7 @@ import session_manager
 import getpass
 import threading
 
-import os
+import os, sys
 
 from sockets_manager import SocketIO
 
@@ -27,7 +27,7 @@ class bcolors:
 def soft_exit():
     exit_st = True
     print("exiting")
-    exit() 
+    sys.exit(0)
 
 def get_token():
     if api.session.token == "":
