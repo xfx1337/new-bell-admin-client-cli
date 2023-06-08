@@ -2,6 +2,7 @@ from singleton import singleton
 
 import socketio
 import threading
+import time
 
 import api.session
 
@@ -53,6 +54,7 @@ class SocketIO:
 
         def disconnection_task(exit_st, exit_st_force):
             while not exit_st[0] and not self.exit_st_force[0]:
+                time.sleep(0.1)
                 pass
             self.sio.disconnect()
             self.connected = False
@@ -76,19 +78,23 @@ class SocketIO:
 
     def re_run(self):
         while api.session.token == "":
+            time.sleep(0.1)
             pass
 
         self._socket_thread = threading.Thread(target=self.socket_thread, daemon=True)
         self._socket_thread.start() 
 
         while not self.exit_st[0]:
+            time.sleep(0.1)
             if self.__exit_st[0] == True:
                 self.__exit_st[0] = False
                 self.connected = False
                 self.exit_st_force[0] = True
                 while self.exit_st_force[0]:
+                    time.sleep(0.1)
                     pass
                 while self._socket_thread.is_alive(): 
+                    time.sleep(0.1)
                     pass
                 self._socket_thread = threading.Thread(target=self.socket_thread, daemon=True)
                 try: self._socket_thread.start() 
@@ -108,5 +114,6 @@ class SocketIO:
             self.re_run_thread.start()
         print("[socketio] connecting to server")
         while not self.connected:
+            time.sleep(0.1)
             pass
         print("[socketio] connection established")

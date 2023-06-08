@@ -1,12 +1,12 @@
 [new-bell-admin-session]
-host = "http://127.0.0.1:5000"
-token = "28b2bfb0-6aec-4861-b04a-d37c0a508c4e"
+host = "http://185.246.64.64:5000"
+token = "398b82ce-56b3-4820-bf44-27750a9480c9"
 username = "newbell"
 
 [new-bell-admin-configuration]
 monitoring_mode = "on_update"
 monitoring_timeout = 5
-colored = false
-failsafe_mode = false
-failsafe_timeout = 10.0
-wait_mode = false
+colored = true
+failsafe_mode = true
+failsafe_timeout = 30
+wait_mode = true

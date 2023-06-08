@@ -7,6 +7,7 @@ import configuration
 from singleton import singleton
 
 import uuid
+import time
 
 from utils import bcolors
 
@@ -96,6 +97,7 @@ class ADMRequestManager:
         socketIO.request(data)
         if configuration.wait_mode:
             while not self.responsed:
+                time.sleep(0.1)
                 pass
             del self.processes[data["content"]["execution_id"]]
 
@@ -119,6 +121,7 @@ class ADMRequestManager:
             return
 
         while not self.responsed:
+            time.sleep(0.1)
             pass
     
     def close_process(self, execution_id):

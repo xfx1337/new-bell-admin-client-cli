@@ -70,6 +70,7 @@ class Monitoring:
     def show_devices(self):
         try:
             while not self.exit_st[0]:
+                time.sleep(0.1)
                 if not self._force_st:
                     if self.pause:
                         continue
@@ -249,6 +250,7 @@ class Monitoring:
     def _key_reader(self):
         kb = KBHit()
         while not self.exit_st[0]:
+            time.sleep(0.1)
             if kb.kbhit():
                 c = kb.getch()
                 if c == "d":
@@ -338,6 +340,7 @@ def monitor_all(size, set: MonitoringSet):
     ui_thread.start()
 
     while not exit_st[0]:
+        time.sleep(0.1)
         pass
 
     return monitor.reload_st, copy.deepcopy(monitor.set)

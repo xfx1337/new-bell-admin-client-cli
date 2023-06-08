@@ -13,6 +13,7 @@ def authed_post(host, m_json=""):
             done = True
             break
         except:
+            time.sleep(0.1)
             done = False
     if done == False:
         print("[requests] http connection is broken")
