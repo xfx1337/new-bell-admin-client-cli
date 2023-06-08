@@ -134,7 +134,9 @@ class Monitoring:
                     if configuration.only_selected:
                         if i+1 not in selected:
                             continue
-                        
+
+                    headers_str = headers_str.replace("\n", "\\n")
+
                     if i+1 in selected: # because here math goes by 0, not 1
                         if configuration.colored:
                             output = output + bcolors.OKGREEN + headers_str + bcolors.ENDC + "\n\n"
