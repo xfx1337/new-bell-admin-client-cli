@@ -74,3 +74,30 @@ def get_sql(sql):
     if len(data["data"]) == 0:
         return -1, "nothing found"
     return 0, data["data"]
+
+def get_process_info(execution_id):
+    if api.session.token == "":
+        return -1, "not authed"
+    r = api.utils.authed_post(api.session.host + "/api/admin/process_info", {"execution_id": execution_id})
+    if r.status_code != 200:
+        return -1, r.text
+    data = r.json()
+    return 0, data["data"]
+
+def get_process_responses(execution_id):
+    if api.session.token == "":
+        return -1, "not authed"
+    r = api.utils.authed_post(api.session.host + "/api/admin/get_process_responses", {"execution_id": execution_id})
+    if r.status_code != 200:
+        return -1, r.text
+    data = r.json()
+    return 0, data["data"]
+
+def get_processes():
+    if api.session.token == "":
+        return -1, "not authed"
+    r = api.utils.authed_post(api.session.host + "/api/admin/get_processes", {})
+    if r.status_code != 200:
+        return -1, r.text
+    data = r.json()
+    return 0, data["data"]

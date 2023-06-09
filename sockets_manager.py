@@ -52,6 +52,26 @@ class SocketIO:
             if self.exec_callback != None:
                 self.exec_callback("response", data)
 
+        @self.sio.event(namespace="/mainIO")
+        def device_response_error(data):
+            if self.exec_callback != None:
+                self.exec_callback("device_response_error", data)
+        
+        @self.sio.event(namespace="/mainIO")
+        def device_response_status(data):
+            if self.exec_callback != None:
+                self.exec_callback("device_response_status", data)
+
+        @self.sio.event(namespace="/mainIO")
+        def request_error(data):
+            if self.exec_callback != None:
+                self.exec_callback("request_error", data)
+
+        @self.sio.event(namespace="/mainIO")
+        def process_end(data):
+            if self.exec_callback != None:
+                self.exec_callback("process_end", data)
+
         def disconnection_task(exit_st, exit_st_force):
             while not exit_st[0] and not self.exit_st_force[0]:
                 time.sleep(0.1)

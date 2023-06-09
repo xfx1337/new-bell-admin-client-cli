@@ -38,11 +38,12 @@ clear_selected - disable selection
 
 [device execution]
 execute [cmd] - execute cmd on selected devices
-show_processes - show opened processes on devices
+current_watch - get currenly watching id
+get_processes - show opened processes on devices
 process_info [execution_id] - print process info
 watch_process [execution_id] - wait for responses if wait_mode was disabled
-close_process [execution_id] - disable watching on process. no outputs will be provided
-close_process all - close all processes
+close_process [execution_id] - close process(this will interupt process and delete it from db)
+close_process all - close all processes [NOT IMPLEMENTED]
 execute_failsafe [true/false] - enable failsafe command interruption. [false] is really not recommended
 execute_failsafe_timeout [seconds] - time before command will be automatically interrupted
 execute_wait_mode [true/false] - wait for output of the execution
@@ -80,6 +81,4 @@ cls - clear screen
 dbg_show_threads - show current running threads
 dbg_exec [python prompt] - execute
 dbg_colored [true/false] - enable/disable colored output
-dbg_interrupt [execution_id] - interrupt process
-dbg_interrupt all - interrupt all processes that were started by administration
 """

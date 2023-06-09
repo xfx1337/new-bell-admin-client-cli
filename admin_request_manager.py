@@ -1,4 +1,5 @@
 import api.session
+import api.info
 
 from selectors_manager import SelectorsManager
 from sockets_manager import SocketIO
@@ -8,6 +9,7 @@ from singleton import singleton
 
 import uuid
 import time
+from datetime import datetime
 
 from utils import bcolors
 
@@ -17,22 +19,38 @@ socketIO = SocketIO()
 @singleton
 class ADMRequestManager:
     def __init__(self):
-        self.processes = {}
         self.current_watching = 0
-        self.responsed = True
-        socketIO.set_exec_callback(self.callback)
+        self.watching = False
+        self.temporary_wait = False
+        self.responsed = False
+        socketIO.set_exec_callback(self.exec_callback)
+        #socketIO.set_fw_callback(self.upd_callback)
 
-    def callback(self, event, data):
-        if data["content"]["execution_id"] in self.processes.keys():
-            self.processes[data["content"]["execution_id"]]["responses"][data["content"]["device_id"]] = data["content"]
-
-            if self.current_watching == data["content"]["execution_id"] and self.processes[data["content"]["execution_id"]]["data"]["content"]["wait_mode"]:
+    def exec_callback(self, event, data):
+        if not self.watching and not self.temporary_wait:
+            return
+        
+        if data["execution_id"] == self.current_watching:
+            if event == "response":
                 print_response(data)
+            elif event == "process_end":
+                self.watching = False
+                self.responsed = True
+            elif event == "device_response_status":
+                print(data["data"].lower())
+                self.temporary_wait = False
+            elif event == "device_response_error":
+                print(data["data"].lower())
 
-            if len(self.processes[data["content"]["execution_id"]]["responses"]) == len(self.processes[data["content"]["execution_id"]]["data"]["ids"]):
-                self.processes[data["content"]["execution_id"]]["done"] = True
-                if self.current_watching == data["content"]["execution_id"]:
-                    self.responsed = True
+            elif event == "request_error":
+                print(data.lower())
+
+    def upd_callback(self, event, data):
+        print(data)
+
+    def lock(self, selection=None):
+        print("not implemented")
+        pass
 
     def update(self, all_devices=False, link="default"):
         if api.session.token == "":
@@ -53,21 +71,32 @@ class ADMRequestManager:
         data["type"] = "update"
         data["link"] = link
 
-        #TODO: do it...
+        socketIO.update(data)
+        #TODO: do
 
     def interrupt(self, execution_id):
         data = {"type": "interrupt"}
         if execution_id == "all":
             data["execution_id"] = "all"
             data["ids"] = "all"
+        
         else:
-            if execution_id not in self.processes.keys():
-                print("couldn't find process")
+            ret, info = api.info.get_process_info(execution_id)
+            if ret != 0:
+                print("couldn't get process info: " + info)
                 return
+            
             data["execution_id"] = execution_id
             data["ids"] = self.processes[execution_id]["data"]["ids"]
 
+        self.temporary_wait = True
+        save_current_watching = self.current_watching
+        self.current_watching = execution_id
         socketIO.request(data)
+        while self.temporary_wait:
+            time.sleep(0.1)
+            pass
+        self.current_watching = save_current_watching
 
     def execute(self, cmd):
         if api.session.token == "":
@@ -79,7 +108,6 @@ class ADMRequestManager:
             return
         
         ids = selectors_manager.get_selected().copy()
-        self.responsed = False
 
         data = {
             "ids": ids,
@@ -92,90 +120,115 @@ class ADMRequestManager:
         
         print("execution_id: " + data["content"]["execution_id"])
 
-        self.processes[data["content"]["execution_id"]] = {"data": data, "responses": {}, "done": False}
         self.current_watching = data["content"]["execution_id"]
         socketIO.request(data)
         if configuration.wait_mode:
+            self.watching = True
+            self.responsed = False
             while not self.responsed:
                 time.sleep(0.1)
                 pass
-            del self.processes[data["content"]["execution_id"]]
+        
 
     def watch(self, execution_id):
         if api.session.token == "":
             print("not authed")
             return
         
-        if execution_id not in self.processes.keys():
-            print("couldn't find process")
-            return
-        self.current_watching = execution_id
-        self.responsed = False
-
         print("")
 
-        for r in self.processes[execution_id]["responses"]:
-            print_response({"content": self.processes[execution_id]["responses"][r]})
-
-        if self.processes[execution_id]["done"]:
+        ret, info = api.info.get_process_info(execution_id)
+        if ret != 0:
+            print("couldn't get process info: " + info)
             return
 
-        while not self.responsed:
-            time.sleep(0.1)
-            pass
+        ret, info = api.info.get_process_responses(execution_id)
+        if ret != 0:
+            self.current_watching = execution_id
+            self.watching = True
+            self.responsed = False
+
+            while not self.responsed:
+                time.sleep(0.1)
+                pass
+
+        else:
+            print("responses:")
+            for p in info:
+                print_response(p)
     
     def close_process(self, execution_id):
         if api.session.token == "":
             print("not authed")
             return
         
-        if execution_id == "all":
-            self.processes = {}
-            return
+        if execution_id != "all":
+            ret, data = api.info.get_process_info(execution_id)
+            if ret != 0:
+                print("couldn't get process info: " + data)
+                return
+            
+            self.temporary_wait = True
+            save_current_watching = self.current_watching
+            self.current_watching = execution_id
+            socketIO.request({"type": "close_process", "execution_id": execution_id})
+            while self.temporary_wait:
+                time.sleep(0.1)
+                pass
+            self.current_watching = save_current_watching
+        else:
+            socketIO.request({"type": "close_process", "execution_id": execution_id})
+            print("request sent")
 
-        if execution_id not in self.processes.keys():
-            print("couldn't find process")
-            return
-        del self.processes[execution_id]
 
     def get_process_info(self, execution_id):
         if api.session.token == "":
             print("not authed")
             return
-        if execution_id not in self.processes.keys():
-            print("couldn't find process")
+
+        ret, data = api.info.get_process_info(execution_id)
+        if ret != 0:
+            print("couldn't get process info: " + data)
             return
-        process = self.processes[execution_id]
-        process_data = process["data"]
+
         print("")
         print("execution_id: " + execution_id)
-        print("done: " + str(process["done"]).lower())
-        print("ids: " + str(process_data["ids"]))
-        print("type: " + process_data["type"])
-        print("cmd: " + process_data["content"]["cmd"])
-        print("failsafe mode: " + str(process_data["content"]["failsafe_mode"]).lower())
-        print("failsafe_timeout: " + str(process_data["content"]["failsafe_timeout"]))
-        print("wait_mode: " + str(process_data["content"]["wait_mode"]).lower())
+        print("status: " + str(data["status"]).lower())
+        print("ids: " + str(data["ids"]).replace("[", "").replace("]", "").replace(", ", ""))
+        print("cmd: " + data["cmd"])
+        print("failsafe mode: " + str(data["failsafe_mode"]).lower())
+        print("failsafe_timeout: " + str(data["failsafe_timeout"]))
+        print("wait_mode: " + str(data["wait_mode"]).lower())
 
 
     def get_processses(self):
-        if len(self.processes.keys()) < 1:
-            print("no processes running or executed")
-            return
-        
+        ret, data = api.info.get_processes()
+
         print("")
 
-        for p in self.processes.keys():
-            p = self.processes[p]
-            if p["done"] == False:
-                print(f'{p["data"]["content"]["execution_id"]}: {p["data"]["type"]} -- {p["data"]["content"]["cmd"]} -- in progress')
-        for p in self.processes.keys():
-            p = self.processes[p]
-            if p["done"] == True:
-                print(f'{p["data"]["content"]["execution_id"]}: {p["data"]["type"]} -- {p["data"]["content"]["cmd"]} -- done')
+        if ret != 0:
+            print("couldn't get processes " + data)
+            return
+
+        if len(data) == 0:
+            print("no processes")
+            return
+
+        for p in data:
+            if p["status"] == "IN_PROGRESS":
+                print(f'{p["execution_id"]}: {p["cmd"]} -- in progress')
+        for p in data:
+            if p["status"] == "DONE":
+                print(f'{p["execution_id"]}: {p["cmd"]} -- done')
+        for p in data:
+            if p["status"] == "INTERRUPTED":
+                print(f'{p["execution_id"]}: {p["cmd"]} -- interrupted')
+            
 
         print("")
 
 def print_response(data):
-    print("device_id: " + str(data["content"]["device_id"]))
+    print("device_id: " + str(data["content"]["id"]))
     print("response: " + data["content"]["response"])
+    print("errors: " + data["content"]["errors"])
+    print("time: " + datetime.fromtimestamp(int(data["content"]["time"])).strftime("%d.%m.%Y %H:%M:%S"))

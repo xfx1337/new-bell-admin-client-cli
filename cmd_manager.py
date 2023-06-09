@@ -45,6 +45,12 @@ def main(exit_st, entry_point="main", cmd_controller=None, wait_st=[True]):
                     local_st = -1
                     break # exit func because main thread said
             
+            elif cmd.startswith("lock"):
+                if len(cmd.split()) > 1:
+                    adm_request_manager.lock(cmd.split()[1])
+                else:
+                    adm_request_manager.lock()
+
             elif cmd.startswith("set_monitoring_mode"):
                 if entry_point != "monitoring":
                     print("you are not in monitoring mode")
@@ -274,8 +280,8 @@ def main(exit_st, entry_point="main", cmd_controller=None, wait_st=[True]):
                 for t in threading.enumerate():
                     print(t.name)
             
-            elif cmd.startswith("dbg_interrupt"):
-                adm_request_manager.interrupt(cmd.split()[1])
+            # elif cmd.startswith("dbg_interrupt"):
+            #     adm_request_manager.interrupt(cmd.split()[1])
 
             elif cmd.startswith("dbg_colored"):
                 st = cmd.split()[1]
