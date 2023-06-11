@@ -155,7 +155,7 @@ class ADMRequestManager:
         else:
             print("responses:")
             for p in info:
-                print_response(p)
+                print_response(p["content"])
     
     def close_process(self, execution_id):
         if api.session.token == "":
@@ -228,7 +228,7 @@ class ADMRequestManager:
         print("")
 
 def print_response(data):
-    print("device_id: " + str(data["content"]["id"]))
-    print("response: " + data["content"]["response"])
-    print("errors: " + data["content"]["errors"])
-    print("time: " + datetime.fromtimestamp(int(data["content"]["time"])).strftime("%d.%m.%Y %H:%M:%S"))
+    print("device_id: " + str(data["id"]))
+    print("response: " + data["response"])
+    print("errors: " + data["errors"])
+    print("time: " + datetime.fromtimestamp(int(data["time"])).strftime("%d.%m.%Y %H:%M:%S"))
