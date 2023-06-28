@@ -1,4 +1,7 @@
 import api.session
+import api.auth
+import api.info
+
 import configuration
 import session_manager
 
@@ -38,6 +41,15 @@ def get_session():
     if api.session.token == "":
         return "not authed"
     return f"username: {api.session.username}\ntoken: {api.session.token}\nprivileges: {api.session.privileges}"
+
+def create_event_handler():
+    if api.session.token == "":
+        return "not authed"
+    
+    status = input("status: ")
+    message = input("message: ")
+
+    return api.info.create_event(status, message)
 
 def user_register_handler():
     if api.session.token == "":

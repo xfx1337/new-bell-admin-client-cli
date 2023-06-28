@@ -1,6 +1,6 @@
 [new-bell-admin-session]
-host = "http://127.0.0.1:5000"
-token = "1a2cd137-79fa-4063-98af-d9a335549ccf"
+host = "http://185.246.64.64:5000"
+token = "b65b8fa4-26b0-41de-8d0b-ce92f5812951"
 username = "newbell"
 
 [new-bell-admin-configuration]
@@ -9,4 +9,4 @@ monitoring_timeout = 5
 colored = true
 failsafe_mode = true
 failsafe_timeout = 30
-wait_mode = false
+wait_mode = true

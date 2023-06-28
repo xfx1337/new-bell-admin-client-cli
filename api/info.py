@@ -38,6 +38,14 @@ def read_events(ids):
         return "couldn't read events. response: " + r.text
     return "events marked as read"
 
+def create_event(status, message):
+    if api.session.token == "":
+        return "not authed"
+    r = api.utils.authed_post(api.session.host + "/api/admin/create_event", {"status": status, "message": message})
+    if r.status_code != 200:
+        return "couldn't create event. response: " + r.text
+    return "event created"
+
 def get_device_info(id):
     if api.session.token == "":
         return "not authed"

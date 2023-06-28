@@ -63,7 +63,8 @@ execute_wait_mode [true/false] - wait for output of the execution
 [admin]
 get_events - get admin events
 read_events - make events read
-request [json] - make an admin request
+read_events all - make all events read
+create_event - create event
 
 [users]
 delete_user [username]

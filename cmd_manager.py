@@ -95,6 +95,9 @@ def main(exit_st, entry_point="main", cmd_controller=None, wait_st=[True]):
             elif cmd == "get_token":
                 print(utils.get_token())
 
+            elif cmd == "create_event":
+                print(utils.create_event_handler())
+
             elif cmd == "get_events":
                 print(api.info.get_events())
 
@@ -205,6 +208,9 @@ def main(exit_st, entry_point="main", cmd_controller=None, wait_st=[True]):
             elif cmd.startswith("select"):
                 print(selectors_manager.select(list(map(int, cmd.split()[1:]))))
     
+            elif cmd.startswith("current_watch"):
+                print("not watching" if adm_request_manager.current_watching == 0 else adm_request_manager)
+
             elif cmd.startswith("current_ids"):
                 print("ids")
                 print(*selectors_manager.get_selected())
